@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    <style>
+        /* Simple styling for the game area */
+        #gameArea {
+            width: {{ canvas_width }}px;
+            height: {{ canvas_height }}px;
+            border: 1px solid black;
+            position: relative;
+            background-color: #f0f0f0;
+        }
+
+        .player {
+            width: 10px;
+            height: 50px;
+            position: absolute;
+            background-color: blue;
+        }
+
+        .ball {
+            width: 10px;
+            height: 10px;
+            position: absolute;
+            background-color: red;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <!-- Players and ball will be added dynamically here -->
+    </div>
+
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        const socket = io.connect('http://{{ domain }}:{{ port }}');
+        let playerId = null;
+
+        socket.on('connect', function() {
+            console.log('Connected to the server');
+        });
+
+        socket.on('player_id', function(data) {
+            playerId = data.id;  // Store the player ID
+            console.log("Received player ID: ", playerId);
+        });
+
+        socket.on('game_state', function(gameState) {
+            updateGameArea(gameState);
+        });
+
+        function updateGameArea(gameState) {
+            const gameArea = document.getElementById('gameArea');
+            gameArea.innerHTML = ''; // Clear the game area
+
+            // Update players
+            Object.keys(gameState.players).forEach(id => {
+                const player = gameState.players[id];
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player';
+                playerDiv.style.left = player.x + 'px';
+                playerDiv.style.top = player.y + 'px';
+                gameArea.appendChild(playerDiv);
+            });
+
+            // Update ball
+            const ball = gameState.ball;
+            const ballDiv = document.createElement('div');
+            ballDiv.className = 'ball';
+            ballDiv.style.left = ball.x + 'px';
+            ballDiv.style.top = ball.y + 'px';
+            gameArea.appendChild(ballDiv);
+        }
+
+        // Listen for arrow key presses to move the player
+        document.addEventListener('keydown', function(event) {
+            if (playerId === null) return; // Ignore if player ID is not set
+            let move = null;
+
+            if (event.key == 'ArrowUp') {
+                move = 'up';
+            } else if (event.key === 'ArrowDown') {
+                move = 'down';
+            }
+            if (move) {
+                socket.emit('game_action', { id: playerId, move: move });
+            }
+        });
+    </script>
+</body>
+</html>
